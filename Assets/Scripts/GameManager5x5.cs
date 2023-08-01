@@ -1,0 +1,263 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+
+public class GameManager5x5 : MonoBehaviour
+{
+    public Text GameOverScoreText;
+    public GameObject GameOverPanel;
+    public GameObject YouWinPanel;
+
+    private Tile[,] AllTiles = new Tile[5, 5];
+    private List<Tile[]> columns = new List<Tile[]>();
+    private List<Tile[]> rows = new List<Tile[]>();
+    private List<Tile> EmptyTiles = new List<Tile>();
+    bool stillMove = true;
+    int count2048;
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        Tile[] AllTileOneDim = GameObject.FindObjectsOfType<Tile>();
+        foreach (Tile t in AllTileOneDim)
+        {
+            t.Number = 0;
+            AllTiles[t.indRow, t.indCol] = t;
+            EmptyTiles.Add(t);
+        }
+
+        columns.Add(new Tile[] { AllTiles[0, 0], AllTiles[1, 0], AllTiles[2, 0], AllTiles[3, 0], AllTiles[4, 0] });
+        columns.Add(new Tile[] { AllTiles[0, 1], AllTiles[1, 1], AllTiles[2, 1], AllTiles[3, 1], AllTiles[4, 1] });
+        columns.Add(new Tile[] { AllTiles[0, 2], AllTiles[1, 2], AllTiles[2, 2], AllTiles[3, 2], AllTiles[4, 2] });
+        columns.Add(new Tile[] { AllTiles[0, 3], AllTiles[1, 3], AllTiles[2, 3], AllTiles[3, 3], AllTiles[4, 3] });
+        columns.Add(new Tile[] { AllTiles[0, 4], AllTiles[1, 4], AllTiles[2, 4], AllTiles[3, 4], AllTiles[4, 4] });
+
+        rows.Add(new Tile[] { AllTiles[0, 0], AllTiles[0, 1], AllTiles[0, 2], AllTiles[0, 3], AllTiles[0, 4] });
+        rows.Add(new Tile[] { AllTiles[1, 0], AllTiles[1, 1], AllTiles[1, 2], AllTiles[1, 3], AllTiles[1, 4] });
+        rows.Add(new Tile[] { AllTiles[2, 0], AllTiles[2, 1], AllTiles[2, 2], AllTiles[2, 3], AllTiles[2, 4] });
+        rows.Add(new Tile[] { AllTiles[3, 0], AllTiles[3, 1], AllTiles[3, 2], AllTiles[3, 3], AllTiles[3, 4] });
+        rows.Add(new Tile[] { AllTiles[4, 0], AllTiles[4, 1], AllTiles[4, 2], AllTiles[4, 3], AllTiles[4, 4] });
+
+        Generate();
+        Generate();
+    }
+
+    private void YouWin()
+    {
+        YouWinPanel.SetActive(true);
+    }
+    public void ContinueButtonHandler()
+    {
+        stillMove = true;
+        YouWinPanel.SetActive(false);
+    }
+
+    private void GameOver()
+    {
+        GameOverScoreText.text = ScoreTracker.Instance.Score.ToString();
+        GameOverPanel.SetActive(true);
+    }
+
+    bool CanMove()
+    {
+        if (EmptyTiles.Count > 0)
+            return true;
+        else
+        {
+            //CHECK COLUMNS
+            for (int c = 0; c < columns.Count; c++)
+                for (int r = 0; r < rows.Count - 1; r++)
+                    if (AllTiles[r, c].Number == AllTiles[r + 1, c].Number)
+                        return true;
+
+            //CHECK ROWS
+            for (int r = 0; r < rows.Count; r++)
+                for (int c = 0; c < columns.Count - 1; c++)
+                    if (AllTiles[r, c].Number == AllTiles[r, c + 1].Number)
+                        return true;
+        }
+        return false;
+    }
+
+
+    public void NewGameButtonHandler()
+    {
+        SceneManager.LoadScene("x5GameScene");
+    }
+
+    public void MainMenuButtonHandler()
+    {
+        SceneManager.LoadScene("MainMenu");
+    }
+
+    bool MakeOneMoveDownIndex(Tile[] LineOfTiles)
+    {
+        for (int i = 0; i < LineOfTiles.Length - 1; i++)
+        {
+            //MOVE BLOCK
+            if (LineOfTiles[i].Number == 0 && LineOfTiles[i + 1].Number != 0)
+            {
+                LineOfTiles[i].Number = LineOfTiles[i + 1].Number;
+                LineOfTiles[i + 1].Number = 0;
+                return true;
+            }
+            // MERGE BLOCK
+            if (LineOfTiles[i].Number != 0 && LineOfTiles[i].Number == LineOfTiles[i + 1].Number &&
+                LineOfTiles[i].mergedThisTurn == false && LineOfTiles[i + 1].mergedThisTurn == false)
+            {
+                LineOfTiles[i].Number *= 2;
+                LineOfTiles[i + 1].Number = 0;
+                LineOfTiles[i].mergedThisTurn = true;
+                LineOfTiles[i].PlayMergeAnimation();
+                ScoreTracker.Instance.Score += LineOfTiles[i].Number;
+                if (LineOfTiles[i].Number == 2048)
+                {
+                    foreach (Tile t in AllTiles)
+                    {
+                        if (t.Number == 2048)
+                        {
+                            count2048 += 1;
+                        }
+                    }
+                    if (count2048 == 1)
+                    {
+                        stillMove = false;
+                        YouWin();
+                    }
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+    bool MakeOneMoveUpIndex(Tile[] LineOfTiles)
+    {
+        for (int i = LineOfTiles.Length - 1; i > 0; i--)
+        {
+            //MOVE BLOCK
+            if (LineOfTiles[i].Number == 0 && LineOfTiles[i - 1].Number != 0)
+            {
+                LineOfTiles[i].Number = LineOfTiles[i - 1].Number;
+                LineOfTiles[i - 1].Number = 0;
+                return true;
+            }
+            // MERGE BLOCK
+            if (LineOfTiles[i].Number != 0 && LineOfTiles[i].Number == LineOfTiles[i - 1].Number &&
+                LineOfTiles[i].mergedThisTurn == false && LineOfTiles[i - 1].mergedThisTurn == false)
+            {
+                LineOfTiles[i].Number *= 2;
+                LineOfTiles[i - 1].Number = 0;
+                LineOfTiles[i].mergedThisTurn = true;
+                LineOfTiles[i].PlayMergeAnimation();
+                ScoreTracker.Instance.Score += LineOfTiles[i].Number;
+                if (LineOfTiles[i].Number == 2048)
+                {
+                    foreach (Tile t in AllTiles)
+                    {
+                        if (t.Number == 2048)
+                        {
+                            count2048 += 1;
+                        }
+                    }
+                    if (count2048 == 1)
+                    {
+                        stillMove = false;
+                        YouWin();
+                    }
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void Generate()
+    {
+        if (EmptyTiles.Count > 0)
+        {
+            int indexForNewNumber = Random.Range(0, EmptyTiles.Count);
+            int randomNum = Random.Range(0, 10);
+            if (randomNum == 0)
+                EmptyTiles[indexForNewNumber].Number = 4;
+            else
+                EmptyTiles[indexForNewNumber].Number = 2;
+            EmptyTiles[indexForNewNumber].PlayAppearAnimation();
+            EmptyTiles.RemoveAt(indexForNewNumber);
+        }
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+
+    }
+
+    private void ResetMergedFlags()
+    {
+        foreach (Tile t in AllTiles)
+            t.mergedThisTurn = false;
+    }
+    private void UpdateEmptyTiles()
+    {
+        EmptyTiles.Clear();
+        foreach (Tile t in AllTiles)
+        {
+            if (t.Number == 0)
+                EmptyTiles.Add(t);
+        }
+    }
+
+    public void Move(MoveDirection5x5 md)
+    {
+        Debug.Log(md.ToString() + " move.");
+        bool moveMade = false;
+        ResetMergedFlags();
+
+        if (stillMove)
+        {
+            for (int i = 0; i < rows.Count; i++)
+            {
+                switch (md)
+                {
+                    case MoveDirection5x5.Down:
+                        while (MakeOneMoveUpIndex(columns[i]))
+                        {
+                            moveMade = true;
+                        }
+                        break;
+                    case MoveDirection5x5.Left:
+                        while (MakeOneMoveDownIndex(rows[i]))
+                        {
+                            moveMade = true;
+                        }
+                        break;
+                    case MoveDirection5x5.Right:
+                        while (MakeOneMoveUpIndex(rows[i]))
+                        {
+                            moveMade = true;
+                        }
+                        break;
+                    case MoveDirection5x5.Up:
+                        while (MakeOneMoveDownIndex(columns[i]))
+                        {
+                            moveMade = true;
+                        }
+                        break;
+                }
+            }
+            if (moveMade)
+            {
+                UpdateEmptyTiles();
+                Generate();
+
+                if (!CanMove())
+                {
+                    GameOver();
+                }
+            }
+        }
+
+    }
+}
